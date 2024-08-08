@@ -1,0 +1,20 @@
+sql_username:
+sql_password:
+sql_port: 5432
+
+seasons:
+  23/24: https://fbref.com/en/comps/9/Premier-League-Stats
+  22/23: https://fbref.com/en/comps/9/2022-2023/2022-2023-Premier-League-Stats
+  21/22: https://fbref.com/en/comps/9/2021-2022/2021-2022-Premier-League-Stats
+  20/21: https://fbref.com/en/comps/9/2020-2021/2020-2021-Premier-League-Stats
+  19/20: https://fbref.com/en/comps/9/2019-2020/2019-2020-Premier-League-Stats
+  18/19: https://fbref.com/en/comps/9/2018-2019/2018-2019-Premier-League-Stats
+  17/18: https://fbref.com/en/comps/9/2017-2018/2017-2018-Premier-League-Stats
+
+championship_seasons:
+  23/24: https://fbref.com/en/comps/10/Championship-Stats
+  22/23: https://fbref.com/en/comps/10/2022-2023/2022-2023-Championship-Stats
+  21/22: https://fbref.com/en/comps/10/2021-2022/2021-2022-Championship-Stats
+  20/21: https://fbref.com/en/comps/10/2020-2021/2020-2021-Championship-Stats
+  19/20: https://fbref.com/en/comps/10/2019-2020/2019-2020-Championship-Stats
+  18/19: https://fbref.com/en/comps/10/2018-2019/2018-2019-Championship-Stats
