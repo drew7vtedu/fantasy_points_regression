@@ -39,7 +39,7 @@ class Preprocessor:
                             help='Path to the config file to load.')
         parser.add_argument('--fpl_data_path', type=str, required=False, default='data/fpl',
                             help='Path to the directory of fpl player data.')
-        parser.add_argument('--query_path', type=str, required=False, default='queries/source_data.sql',
+        parser.add_argument('--query_path', type=str, required=False, default='queries/all_source_data.sql',
                             help='Path to the source data query for fbref player data.')
         parser.add_argument('--extra_fpl_features', type=list, required=False, default=[],
                             help='any extra fpl features you wish to add to enrich data')
@@ -101,6 +101,8 @@ class Preprocessor:
         fbref_data['age'] = fbref_data['age'].astype(int)
         fbref_data['minutes_played'] = fbref_data['minutes_played'].astype(float)
 
+        fbref_data = fbref_data.drop_duplicates(subset=['fbref_first_name', 'fbref_last_name', 'season'], keep='first')
+
         return fbref_data
 
     def add_shifted_column(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -122,36 +124,40 @@ class Preprocessor:
 
         return df_sorted
 
-    def main(self) -> pd.DataFrame:
+    def main(self, use_fpl: bool=True) -> pd.DataFrame:
         """
         main method which loads and preprocesses the data
         :return: DataFrame containing data ready for modeling
         """
-        fpl_data = self.load_cached_data(self.args.fpl_data_path)
-        fpl_data = self.preprocess_fpl_data(fpl_data)
+        if use_fpl:
+            fpl_data = self.load_cached_data(self.args.fpl_data_path)
+            fpl_data = self.preprocess_fpl_data(fpl_data)
         fbref_data = self.load_fbref_data()
         fbref_data = self.preprocess_fbref_data(fbref_data)
-        join_df = fbref_data.merge(fpl_data,
-                                   left_on=['fpl_first_name', 'fpl_second_name', 'season'],
-                                   right_on=['first_name', 'second_name', 'season'])
-        join_df = join_df.drop(columns=self.drop_after_matching)
-        if self.add_bps_features:
-            og_query = self.fbref_data_query
-            with open('queries/bonus_point_query.sql', 'r') as query_file:
-                self.fbref_data_query = query_file.read()
-            bps_data = self.load_fbref_data()
-            bps_data = bps_data.dropna()
-            self.fbref_data_query = og_query
-            join_df = join_df.merge(bps_data, left_on=['fbref_first_name', 'fbref_last_name', 'season', 'team'],
-                                       right_on=['first_name', 'last_name', 'season', 'team'])
-            join_df = join_df.drop(columns=['first_name', 'last_name'], axis=1)
-            join_df['dribbles'] = join_df['dribbles'].astype(int)
-            join_df['tackled'] = join_df['tackled'].astype(int)
-        join_df = self.add_shifted_column(join_df)
-        join_df = join_df.rename({f"shifted_{self.col_to_shift}": 'target'}, axis=1)
-        join_df = join_df.loc[join_df.season != '23/24']
-        join_df = join_df.dropna().reset_index(drop=True)
-        return join_df
+        if use_fpl:
+            join_df = fbref_data.merge(fpl_data,
+                                       left_on=['fpl_first_name', 'fpl_second_name', 'season'],
+                                       right_on=['first_name', 'second_name', 'season'])
+            join_df = join_df.drop(columns=self.drop_after_matching)
+            if self.add_bps_features:
+                og_query = self.fbref_data_query
+                with open('queries/bonus_point_query.sql', 'r') as query_file:
+                    self.fbref_data_query = query_file.read()
+                bps_data = self.load_fbref_data()
+                bps_data = bps_data.dropna()
+                self.fbref_data_query = og_query
+                join_df = join_df.merge(bps_data, left_on=['fbref_first_name', 'fbref_last_name', 'season', 'team'],
+                                           right_on=['first_name', 'last_name', 'season', 'team'])
+                join_df = join_df.drop(columns=['first_name', 'last_name'], axis=1)
+                join_df['dribbles'] = join_df['dribbles'].astype(int)
+                join_df['tackled'] = join_df['tackled'].astype(int)
+            join_df = self.add_shifted_column(join_df)
+            join_df = join_df.rename({f"shifted_{self.col_to_shift}": 'target'}, axis=1)
+            join_df = join_df.loc[join_df.season != '23/24']
+            join_df = join_df.dropna().reset_index(drop=True)
+            return join_df
+        else:
+            return fbref_data
 
 
 if __name__ == '__main__':

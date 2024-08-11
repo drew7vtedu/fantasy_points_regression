@@ -9,7 +9,7 @@ from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.linear_model import LinearRegression
 
 from preprocess import Preprocessor
-from models import BaselineModel, BaselineModel2, NeuralNetRegressor
+from models import BaselineModel, BaselineModel2, NeuralNetRegressor, LSTMRegressorWrapper
 
 
 class Evaluator:
@@ -24,12 +24,14 @@ class Evaluator:
                 (BaselineModel,
                  {'group_cols': ['fbref_first_name', 'fbref_last_name'], 'col_to_shift': 'total_points'}),
             'baseline2': (BaselineModel2,
-                 {'group_cols': ['fbref_first_name', 'fbref_last_name'], 'col_to_shift': 'total_points'}),
+                          {'group_cols': ['fbref_first_name', 'fbref_last_name'], 'col_to_shift': 'total_points'}),
             'random_forest': (RandomForestRegressor, {}),
             'gradient_boost': (GradientBoostingRegressor, {}),
             'linear': (LinearRegression, {}),
-            'nn': (NeuralNetRegressor, {'layers': [40] * 2, 'activation_function': 'leaky_relu', 'lr': 0.020444883080411782, 'epochs': 45, 'gamma': 0.8723319384111253}
-)
+            'nn': (NeuralNetRegressor,
+                   {'layers': [40] * 2, 'activation_function': 'leaky_relu', 'lr': 0.020444883080411782, 'epochs': 45,
+                    'gamma': 0.8723319384111253}),
+            'lstm': (LSTMRegressorWrapper, {'input_size': 29, 'lr': 0.03171841969792742, 'num_layers': 8, 'hidden_size': 64, 'epochs': 19, 'gamma': 0.8988865559499243, 'dropout': 0.24352474970652446, 'output_size': 1})
         }
         self.models = [self.models_map[model] for model in self.args.models_to_evaluate]
 
@@ -52,7 +54,7 @@ class Evaluator:
                             help='any extra fpl features you wish to add to enrich data')
 
         parser.add_argument('--models_to_evaluate', type=list, required=False,
-                            default=['baseline', 'random_forest', 'gradient_boost', 'linear', 'nn'])
+                            default=['baseline', 'random_forest', 'gradient_boost', 'linear', 'nn', 'lstm'])
 
         return parser
 
@@ -84,6 +86,27 @@ class Evaluator:
                 # results[model_string] = mean_squared_error(y.iloc[baseline_index].values[results_index], res[results_index])
                 results[model_string] = mean_absolute_error(y.values[results_index],
                                                             res[results_index])
+            elif model_string == 'lstm':
+                group_cols = ['fbref_first_name', 'fbref_last_name']
+                lstm_drop_cols = [x for x in drop_cols if x not in ['target', 'season'] + group_cols]
+
+                lstm_train_data = data.iloc[X_train.index].drop(lstm_drop_cols, axis=1)
+                lstm_test_data = data.drop(lstm_drop_cols, axis=1)
+                pdb.set_trace()
+                desired_players = data.iloc[X_test.index]['fbref_first_name'] + data.iloc[X_test.index]['fbref_last_name']
+                lstm_test_data['player_key'] = lstm_test_data.fbref_first_name + lstm_test_data.fbref_last_name
+                lstm_test_data = lstm_test_data.loc[lstm_test_data.player_key.isin(desired_players.values)]
+                lstm_test_data = lstm_test_data.drop(columns='player_key', axis=1)
+
+                lstm_train_data = model.dataframe_to_dataloader(lstm_train_data, group_cols, 'season', 'target')
+                lstm_test_data = model.dataframe_to_dataloader(lstm_test_data, group_cols, 'season', 'target')
+
+                model.fit(lstm_train_data)
+
+                pdb.set_trace()
+                y_pred = model.predict(lstm_test_data)
+                results[model_string] = mean_absolute_error(y_test, y_pred)
+
             else:
 
                 if hasattr(model, 'fit'):

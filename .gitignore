@@ -162,3 +162,5 @@ cython_debug/
 # things I added
 _config_.yaml
 *.ipynb
+.idea
+data/
